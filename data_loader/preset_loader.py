@@ -3,7 +3,7 @@
 """
 Created on Sun Sep 30 10:34:21 2018
 
-@author: naoki
+@author: nn
 """
 
 import tensorflow as tf
@@ -12,7 +12,7 @@ def load_data(data_type):
   if data_type == "mnist":
     tr, te = tf.keras.datasets.mnist.load_data()
     train = tr[0].reshape([-1, 28, 28, 1])
-    test = te[0].reshape([-1, 28, 28, 1])        
+    test = te[0].reshape([-1, 28, 28, 1])
     return (train, tr[1]), (test, te[1]), 10
   else:
     raise TypeError()
