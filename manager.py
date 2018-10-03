@@ -7,12 +7,34 @@ Created on Sun Sep 30 08:03:51 2018
 """
 
 from data_loader import basic_loader
+from model_trainer import tf_base_trainer
 
 def get_loader(loader_params):
   loader = basic_loader.get_data_loader(loader_params)
   return loader
-  
 
+def get_trainer(trainer_params, loader, is_train=True):
+  train_type = trainer_params["train_type"]
+  if train_type == "sl":    
+    trainer = tf_base_trainer.SLBaseTrainer(trainer_params)
+    print(trainer_params)
+    print(tf_base_trainer.SLBaseTrainer)
+    
+  trainer.make_graph(loader, is_train)
+  return trainer
+
+def get_runner(runner_params, loader, trainer):
+  class Runner:
+    def __init__(self, runner_params, loader, trainer):
+      self.params = runner_params
+      self.loader = loader
+      self.trainer = trainer
+
+    def run(self):
+      self.trainer.train(loader, self.params["epochs"],
+                         self.params["batch_size"])
+  return Runner(runner_params, loader, trainer)
+      
 
 if __name__ == "__main__":
   loader_params = {}

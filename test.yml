@@ -1,0 +1,24 @@
+loader:
+  data_type: mnist
+
+trainer:
+  train_type: sl
+  model_arch:
+    arch_type: cnn
+    conv_params:
+      layer_type: small
+      n_dim: 16
+    feature_layer: gap
+    mlp_params:
+      hidden_layers: [128]
+  loss_params: 0        
+  graph_dir: "./graph"
+  logger_params:
+    log_dir: 
+    metrics: ["acc", "ent"]
+    metric_period: 1
+    
+
+runner:
+  epochs: 30
+  batch_size: 32
