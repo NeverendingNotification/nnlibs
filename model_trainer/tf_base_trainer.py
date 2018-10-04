@@ -13,6 +13,7 @@ import tensorflow as tf
 from .basic_trainer import BaseTrainer
 from . import model_creator
 from . import tf_logger
+from .utils import tf_function
 
 class TFBaseTrainer(BaseTrainer):
   def __init__(self, trainer_setting):
@@ -55,8 +56,11 @@ class TFBaseTrainer(BaseTrainer):
 
   def finalize_epoch(self, loader, epochs, batch_size, epoch):    
     if self.logger is not None:
-      self.logger.end_epoch(self, loader, epoch)    
-    
+      self.logger.end_epoch(self, loader, epoch)
+      
+    result = self.sess.run([self.epoch, self.epoch_op,
+                            self.global_step, self.lrate])
+    print(result[0], result[2], result[3])
 
 
   def end_train(self, loader):
@@ -86,25 +90,45 @@ class TFBaseTrainer(BaseTrainer):
         self.finalize_epoch(loader, epochs, batch_size, epoch)
       self.end_train(loader)
 
+  def make_model(self, shape, n_classes, is_train=True):
+    with tf.name_scope("util"):
+      self.epoch = tf.Variable(1, dtype=tf.int32, trainable=False, name="epoch")
+      self.global_step = tf.Variable(0, name="global_step", trainable=False)
+      self.epoch_op = tf.assign_add(self.epoch, 1)
+
 
 class SLBaseTrainer(TFBaseTrainer):
   def make_model(self, shape, n_classes, is_train=True):
+    super().make_model(shape, n_classes, is_train=is_train)
     model_params = self.setting["model_arch"]
     model_params["shape"] = shape
     model_params["n_classes"] = n_classes
     return model_creator.make_model(model_params)
 
   def get_losses(self, inputs, models, loss_params):
-    labels = inputs["target"]
-    logits = models["logits"]
-    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, 
-                                                          logits=logits))
+    with tf.name_scope("loss"):
+      labels = inputs["target"]
+      logits = models["logits"]
+      loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, 
+                                                            logits=logits))
     return {"loss":loss}
     
   def get_trainer(self, inputs, models, losses):
+    opt_params = self.setting["opt_params"]
+    if opt_params["decay_type"] == None:
+      lrate = tf.constant(opt_params["l_rate"])
+    elif opt_params["decay_type"] == "step":
+      lrate = tf_function.step_decay(self.epoch, initial=opt_params["l_rate"],
+                                     drop=opt_params["decay_factor"],
+                                     epochs_drop=opt_params["decay_epoch"])
+    elif opt_params["decay_type"] == "exp":
+      lrate = tf_function.exp_decay(self.epoch, opt_params["l_rate"],
+                                    decay_rate=opt_params["decay_rate"])
+    self.lrate = lrate      
     trainer = {}
-    opt = tf.train.AdamOptimizer()
-    train_op = opt.minimize(losses["loss"])
+    opt = tf.train.AdamOptimizer(learning_rate=lrate)
+    with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
+      train_op = opt.minimize(losses["loss"])
     trainer["train_op"] = train_op
     return trainer    
 

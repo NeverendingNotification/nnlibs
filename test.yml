@@ -15,7 +15,15 @@ trainer:
     feature_layer: gap
     mlp_params:
       hidden_layers: []
-  loss_params: 0        
+  loss_params: 0
+  opt_params:
+     opt_type: "adam"
+     l_rate: 0.001
+     decay_type: exp
+#     decay_epoch: 10
+#     decay_factor: 0.5
+     decay_rate: 0.1
+     
   graph_dir: "./graph"
   logger_params:
     log_dir: logs
