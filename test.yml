@@ -1,5 +1,8 @@
 loader:
-  data_type: mnist
+  data_type: raw
+  raw_dir_params:
+    data_dir: ../data/test1
+    resize: [190, 140]
 
 trainer:
   train_type: sl
@@ -7,14 +10,14 @@ trainer:
     arch_type: cnn
     conv_params:
       layer_type: small
-      n_dim: 16
+      n_dim: 32
     feature_layer: gap
     mlp_params:
       hidden_layers: [128]
   loss_params: 0        
   graph_dir: "./graph"
   logger_params:
-    log_dir: 
+    log_dir: logs
     metrics: ["acc", "ent"]
     metric_period: 1
     

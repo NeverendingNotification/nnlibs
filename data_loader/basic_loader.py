@@ -6,9 +6,11 @@ Created on Sun Sep 30 08:03:51 2018
 @author: nn
 """
 
+import os
+
 import numpy as np
 from . import preset_loader
-  
+from . import data_loader
   
 
 
@@ -77,21 +79,25 @@ def postprocess_1_1(data):
   return ((data) + 1.0) * 255.0 / 2.0
 
 
+  
+  
+
+
 def get_data_loader(loader_params):
   data_type = loader_params["data_type"]
   loader = {}
   pre = preprocess_0_1
   post = postprocess_0_1
   if data_type == "raw":
-    pass
+    train, test, n_classes = data_loader.get_raw_loader(**loader_params["raw_dir_params"])
   else:
     train, test, n_classes = preset_loader.load_data(data_type)
-    loader["train"] = LabelLoader(train[0], train[1], n_classes,
-                                  preprocess=pre, postprocess=post
-                                  )
-    loader["test"] = LabelLoader(test[0], test[1], n_classes,
-                                  preprocess=pre, postprocess=post
-                                  )
+  loader["train"] = LabelLoader(train[0], train[1], n_classes,
+        preprocess=pre, postprocess=post
+        )
+  loader["test"] = LabelLoader(test[0], test[1], n_classes,
+                              preprocess=pre, postprocess=post
+                              )
     
     
   return loader
