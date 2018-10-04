@@ -14,6 +14,11 @@ def load_data(data_type):
     train = tr[0].reshape([-1, 28, 28, 1])
     test = te[0].reshape([-1, 28, 28, 1])
     return (train, tr[1]), (test, te[1]), 10
+  elif data_type == "cifar10":
+    tr, te = tf.keras.datasets.cifar10.load_data()
+    train = tr[0].reshape([-1, 32, 32, 3])
+    test = te[0].reshape([-1, 32, 32, 3])
+    return (train, tr[1].reshape([-1])), (test, te[1].reshape([-1])), 10
   else:
     raise TypeError()
 
