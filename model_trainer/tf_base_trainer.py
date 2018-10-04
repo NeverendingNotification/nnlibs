@@ -60,7 +60,6 @@ class TFBaseTrainer(BaseTrainer):
       
     result = self.sess.run([self.epoch, self.epoch_op,
                             self.global_step, self.lrate])
-    print(result[0], result[2], result[3])
 
 
   def end_train(self, loader):
@@ -115,6 +114,7 @@ class SLBaseTrainer(TFBaseTrainer):
     
   def get_trainer(self, inputs, models, losses):
     opt_params = self.setting["opt_params"]
+    opt_type = opt_params["opt_type"]
     if opt_params["decay_type"] == None:
       lrate = tf.constant(opt_params["l_rate"])
     elif opt_params["decay_type"] == "step":
@@ -126,7 +126,13 @@ class SLBaseTrainer(TFBaseTrainer):
                                     decay_rate=opt_params["decay_rate"])
     self.lrate = lrate      
     trainer = {}
-    opt = tf.train.AdamOptimizer(learning_rate=lrate)
+    if opt_type == "adam":
+      opt = tf.train.AdamOptimizer(learning_rate=lrate)
+    elif opt_type == "sgd":
+      opt = tf.train.GradientDescentOptimizer(lrate)
+    elif opt_type == "rms":
+      opt = tf.train.RMSPropOptimizer(lrate)      
+      
     with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
       train_op = opt.minimize(losses["loss"])
     trainer["train_op"] = train_op
