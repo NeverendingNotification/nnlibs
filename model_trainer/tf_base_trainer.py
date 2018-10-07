@@ -27,8 +27,8 @@ class TFBaseTrainer(BaseTrainer):
                     if "saver_setting" in self.setting \
                     else {}
     self.set_saver(saver_setting)
-    if "load_modeldir" in self.setting:
-      self.saver.restore(self.sess, self.setting["load_model_dir"])
+    if "load_model_path" in self.setting:
+      self.saver.restore(self.sess, self.setting["load_model_path"])
     else:
       self.sess.run(tf.global_variables_initializer())
 
@@ -66,6 +66,8 @@ class TFBaseTrainer(BaseTrainer):
   def end_train(self, loader):
     if self.logger is not None:
       self.logger.log_end(self, loader)
+    if "save_model_path" in self.setting:
+      self.saver.save(self.sess, self.setting["save_model_path"])
 
   def get_feed(self, itr):
     raise NotImplementedError()
@@ -103,7 +105,7 @@ class SLBaseTrainer(TFBaseTrainer):
     model_params = self.setting["model_arch"]
     model_params["shape"] = shape
     model_params["n_classes"] = n_classes
-    return model_creator.make_model(model_params)
+    return model_creator.make_model(model_params, is_train=is_train)
 
   def get_losses(self, inputs, models, loss_params):
     with tf.name_scope("loss"):
@@ -123,6 +125,10 @@ class SLBaseTrainer(TFBaseTrainer):
     trainer["train_op"] = train_op
     return trainer    
 
+  def get_evaluator(self, inputs, models):
+    return {}
+
+
   def get_feed(self, itr):
     fd = {}
     fd[self.inputs["input"]] = itr[0]
@@ -130,13 +136,20 @@ class SLBaseTrainer(TFBaseTrainer):
     fd[self.inputs["target"]] = itr[1]
     return fd
 
+  def evaluate(self, loader, eval_params):
+    from . import tf_metrics
+    out = tf_metrics.get_metrics_classifier(loader, self, 
+                                      metrics=["acc"])
+    print(out)
+
+
 class AEBaseTrainer(TFBaseTrainer):
   def make_model(self, shape, n_classes, is_train=True):
     super().make_model(shape, n_classes, is_train=is_train)
     model_params = self.setting["model_arch"]
     model_params["shape"] = shape
     model_params["n_classes"] = n_classes
-    return model_creator.make_model(model_params)
+    return model_creator.make_model(model_params, is_train=is_train)
 
   def get_losses(self, inputs, models, loss_params):
     with tf.name_scope("loss"):
@@ -158,6 +171,8 @@ class AEBaseTrainer(TFBaseTrainer):
     trainer["train_op"] = train_op
     return trainer
 
+  def get_evaluator(self, inputs, models):
+    return {}
 
   def get_feed(self, itr):
     fd = {}
@@ -166,3 +181,7 @@ class AEBaseTrainer(TFBaseTrainer):
     fd[self.inputs["target"]] = itr[0]
     return fd
 
+  def evaluate(self, loader, eval_params):
+    from . import tf_output
+    tf_output.output(loader, self, eval_params)
+    

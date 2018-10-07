@@ -43,9 +43,15 @@ class BaseTrainer:
       self.losses = losses
       self.trainers = trainers
     else:
+      losses = self.get_losses(inputs, models, self.setting["loss_params"])
+#      trainers = self.get_trainer(inputs, models, losses)    
       self.evaluator = self.get_evaluator(inputs, models)
       
     self.initialize_training(loader)
     
   def train(self, loader, epochs, batch_size=32):
     raise NotImplementedError()
+    
+  def evaluate(self, loader, eval_params):
+    raise NotImplementedError()
+    

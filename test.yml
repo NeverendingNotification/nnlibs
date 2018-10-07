@@ -1,3 +1,4 @@
+mode: "eval"
 loader:
   data_type: mnist
   raw_dir_params:
@@ -10,7 +11,7 @@ trainer:
     arch_type: cnn_ae
     conv_params:
       layer_type: small
-      n_dim: 128
+      n_dim: 4
 
     feature_layer: gap
     mlp_params:
@@ -31,10 +32,14 @@ trainer:
   graph_dir: "./graph"
   logger_params:
     log_dir: logs
-    metrics: []
+    metrics: ["acc"]
     metric_period: 1
-    
-
+#  save_model_path: "models/model"
+  load_model_path: "models/model"
 runner:
-  epochs: 40
+  epochs: 20
   batch_size: 32
+  eval_params:
+    eval_dir: "eval1"
+    n_out: 100
+

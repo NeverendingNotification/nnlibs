@@ -9,11 +9,12 @@ Created on Sun Sep 30 08:03:51 2018
 from data_loader import basic_loader
 from model_trainer import tf_base_trainer
 
-def get_loader(loader_params):
+def get_loader(loader_params, mode="train"):
   loader = basic_loader.get_data_loader(loader_params)
   return loader
 
-def get_trainer(trainer_params, loader, is_train=True):
+def get_trainer(trainer_params, loader, mode="train"):
+  is_train = mode == "train"
   train_type = trainer_params["train_type"]
   if train_type == "sl":    
     trainer = tf_base_trainer.SLBaseTrainer(trainer_params)
@@ -26,7 +27,7 @@ def get_trainer(trainer_params, loader, is_train=True):
   trainer.make_graph(loader, is_train)
   return trainer
 
-def get_runner(runner_params, loader, trainer):
+def get_runner(runner_params, loader, trainer, mode):
   class Runner:
     def __init__(self, runner_params, loader, trainer):
       self.params = runner_params
@@ -34,8 +35,11 @@ def get_runner(runner_params, loader, trainer):
       self.trainer = trainer
 
     def run(self):
-      self.trainer.train(loader, self.params["epochs"],
+      if mode == "train":
+        self.trainer.train(loader, self.params["epochs"],
                          self.params["batch_size"])
+      elif mode == "eval":
+        self.trainer.evaluate(loader, self.params["eval_params"])
   return Runner(runner_params, loader, trainer)
       
 

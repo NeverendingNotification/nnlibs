@@ -10,13 +10,14 @@ from manager import get_loader, get_trainer, get_runner
 import yaml_loader
 
 def main(settings):  
+  mode = settings["mode"]
   loader_setting = settings["loader"]
   trainer_setting = settings["trainer"]
   runner_setting = settings["runner"]
   
-  loader = get_loader(loader_setting)
-  trainer = get_trainer(trainer_setting, loader)
-  runner = get_runner(runner_setting, loader, trainer)
+  loader = get_loader(loader_setting, mode=mode)
+  trainer = get_trainer(trainer_setting, loader, mode=mode)
+  runner = get_runner(runner_setting, loader, trainer, mode=mode)
   
   runner.run()
   
