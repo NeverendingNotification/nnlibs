@@ -32,6 +32,9 @@ def get_metrics_classifier(loader, trainer, batch_size=32, metrics=[]):
     epsilon =1e-10
     results["ent"] = -np.mean(np.sum(prediction * np.log(prediction + epsilon),
            axis=1))
+  if "mse" in metrics:
+    mse = np.mean(np.sqrt(np.power(prediction - correct, 2)))
+    results["mse"] = mse    
   return results
 
 

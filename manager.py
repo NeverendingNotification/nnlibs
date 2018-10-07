@@ -19,7 +19,10 @@ def get_trainer(trainer_params, loader, is_train=True):
     trainer = tf_base_trainer.SLBaseTrainer(trainer_params)
     print(trainer_params)
     print(tf_base_trainer.SLBaseTrainer)
-    
+  elif train_type == "ae":
+    trainer = tf_base_trainer.AEBaseTrainer(trainer_params)
+    print(trainer_params)
+    print(tf_base_trainer.SLBaseTrainer)    
   trainer.make_graph(loader, is_train)
   return trainer
 

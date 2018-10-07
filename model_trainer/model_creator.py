@@ -15,5 +15,8 @@ def make_model(model_arch):
   if arch_type == "cnn":
     inputs, models = cnn.get_network(model_arch)
     return inputs, models
+  elif arch_type == "cnn_ae":
+    inputs, models = cnn.get_ae_network(model_arch)
+    return inputs, models    
   else:
     raise NotImplementedError()

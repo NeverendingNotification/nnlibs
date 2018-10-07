@@ -14,6 +14,7 @@ from .basic_trainer import BaseTrainer
 from . import model_creator
 from . import tf_logger
 from .utils import tf_function
+from . import tf_optimizer
 
 class TFBaseTrainer(BaseTrainer):
   def __init__(self, trainer_setting):
@@ -114,25 +115,9 @@ class SLBaseTrainer(TFBaseTrainer):
     
   def get_trainer(self, inputs, models, losses):
     opt_params = self.setting["opt_params"]
-    opt_type = opt_params["opt_type"]
-    if opt_params["decay_type"] == None:
-      lrate = tf.constant(opt_params["l_rate"])
-    elif opt_params["decay_type"] == "step":
-      lrate = tf_function.step_decay(self.epoch, initial=opt_params["l_rate"],
-                                     drop=opt_params["decay_factor"],
-                                     epochs_drop=opt_params["decay_epoch"])
-    elif opt_params["decay_type"] == "exp":
-      lrate = tf_function.exp_decay(self.epoch, opt_params["l_rate"],
-                                    decay_rate=opt_params["decay_rate"])
+    opt, lrate = tf_optimizer.get_optimizer(self.epoch, opt_params)
     self.lrate = lrate      
     trainer = {}
-    if opt_type == "adam":
-      opt = tf.train.AdamOptimizer(learning_rate=lrate)
-    elif opt_type == "sgd":
-      opt = tf.train.GradientDescentOptimizer(lrate)
-    elif opt_type == "rms":
-      opt = tf.train.RMSPropOptimizer(lrate)      
-      
     with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
       train_op = opt.minimize(losses["loss"])
     trainer["train_op"] = train_op
@@ -144,3 +129,40 @@ class SLBaseTrainer(TFBaseTrainer):
     fd[self.inputs["is_train"]] = True
     fd[self.inputs["target"]] = itr[1]
     return fd
+
+class AEBaseTrainer(TFBaseTrainer):
+  def make_model(self, shape, n_classes, is_train=True):
+    super().make_model(shape, n_classes, is_train=is_train)
+    model_params = self.setting["model_arch"]
+    model_params["shape"] = shape
+    model_params["n_classes"] = n_classes
+    return model_creator.make_model(model_params)
+
+  def get_losses(self, inputs, models, loss_params):
+    with tf.name_scope("loss"):
+      targets = inputs["target"]
+      logits = models["logits"]
+      print(targets.shape)
+      print(logits.shape)
+      loss = tf.reduce_mean(tf.losses.mean_squared_error(labels=targets, 
+                                                          predictions=logits))
+    return {"loss":loss}
+
+  def get_trainer(self, inputs, models, losses):
+    opt_params = self.setting["opt_params"]
+    opt, lrate = tf_optimizer.get_optimizer(self.epoch, opt_params)
+    self.lrate = lrate      
+    trainer = {}
+    with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
+      train_op = opt.minimize(losses["loss"])
+    trainer["train_op"] = train_op
+    return trainer
+
+
+  def get_feed(self, itr):
+    fd = {}
+    fd[self.inputs["input"]] = itr[0]
+    fd[self.inputs["is_train"]] = True
+    fd[self.inputs["target"]] = itr[0]
+    return fd
+
