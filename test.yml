@@ -1,20 +1,24 @@
+mode: "eval"
 loader:
-  data_type: cifar10
+  data_type: mnist
   raw_dir_params:
     data_dir: ../data/test1
     resize: [190, 140]
 
 trainer:
-  train_type: sl
+  train_type: ae
   model_arch:
-    arch_type: cnn
+    arch_type: cnn_ae
     conv_params:
       layer_type: small
-      n_dim: 128
+      n_dim: 4
 
     feature_layer: gap
     mlp_params:
       hidden_layers: []
+    tconv_params:
+      n_up: 2
+      i_channel: 16
   loss_params: 0
   opt_params:
      opt_type: "adam"
@@ -28,10 +32,14 @@ trainer:
   graph_dir: "./graph"
   logger_params:
     log_dir: logs
-    metrics: ["acc", "ent"]
+    metrics: ["acc"]
     metric_period: 1
-    
-
+#  save_model_path: "models/model"
+  load_model_path: "models/model"
 runner:
-  epochs: 40
+  epochs: 20
   batch_size: 32
+  eval_params:
+    eval_dir: "eval1"
+    n_out: 100
+
