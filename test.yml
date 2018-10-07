@@ -13,7 +13,7 @@ trainer:
       layer_type: small
       n_dim: 4
 
-    feature_layer: gap
+    feature_layer: vae
     mlp_params:
       hidden_layers: []
     tconv_params:
@@ -40,6 +40,6 @@ runner:
   epochs: 20
   batch_size: 32
   eval_params:
-    eval_dir: "eval1"
+    eval_dir: "eval2"
     n_out: 100
 
