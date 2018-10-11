@@ -1,0 +1,10 @@
+mode: class
+n_class: 3
+out_root: "../data/test2"
+out_dirs: ["Train", "Test"]
+img_size: [32, 32]
+ext: png
+class_setting:
+  img_counts: [100, 100, 100]
+  color_settings: ["r", "g", "b"]
+  
