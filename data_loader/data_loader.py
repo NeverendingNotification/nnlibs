@@ -11,6 +11,7 @@ import os
 import numpy as np
 import cv2
 
+
 def get_data(dirname, resize=None):
   dirs = os.listdir(dirname)
   class_names = dirs

@@ -9,25 +9,28 @@ Created on Sun Sep 30 08:03:51 2018
 from data_loader import basic_loader
 from model_trainer import tf_base_trainer
 
-def get_loader(loader_params, mode="train"):
+def get_loader(loader_params, mode="train", arc_type="sl"):
   loader = basic_loader.get_data_loader(loader_params)
   return loader
 
-def get_trainer(trainer_params, loader, mode="train"):
+def get_trainer(trainer_params, loader, mode="train", arc_type="sl",
+                out_root=None):
   is_train = mode == "train"
-  train_type = trainer_params["train_type"]
-  if train_type == "sl":    
+  if out_root is not None:
+    trainer_params["out_root"] = out_root
+  trainer_params["arc_type"] = arc_type
+  if arc_type == "sl":    
     trainer = tf_base_trainer.SLBaseTrainer(trainer_params)
     print(trainer_params)
     print(tf_base_trainer.SLBaseTrainer)
-  elif train_type == "ae":
+  elif arc_type == "ae":
     trainer = tf_base_trainer.AEBaseTrainer(trainer_params)
     print(trainer_params)
     print(tf_base_trainer.SLBaseTrainer)    
   trainer.make_graph(loader, is_train)
   return trainer
 
-def get_runner(runner_params, loader, trainer, mode):
+def get_runner(runner_params, loader, trainer, mode, arc_type="sl"):
   class Runner:
     def __init__(self, runner_params, loader, trainer):
       self.params = runner_params

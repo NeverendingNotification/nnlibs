@@ -1,6 +1,6 @@
 mode: "train"
 arc_type: ae
-out_root: "../result/ae"
+out_root: "result/ae"
 
 loader:
   data_type: mnist
@@ -34,7 +34,7 @@ trainer:
     metric_period: 1
 
 runner:
-  epochs: 20
+  epochs: 10
   batch_size: 32
   eval_params:
     eval_dir: "eval2"

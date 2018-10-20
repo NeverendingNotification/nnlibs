@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 def get_metrics_classifier(loader, trainer, batch_size=32, metrics=[]):
   pred = trainer.models["prediction"]
-  test_loader = loader["test"]
+  test_loader = loader.test
   n_iter, iters = test_loader.get_data_iterators(batch_size,
                                                  is_train=False, random=False)
   preds = []
@@ -37,5 +37,8 @@ def get_metrics_classifier(loader, trainer, batch_size=32, metrics=[]):
     results["mse"] = mse    
   return results
 
+def get_metrics_generator(loader, trainer, batch_size=32, metrics=[]):
+  images =  trainer.generate_images(loader, batch_size, metrics=metrics)
+  return {}, images
 
 
