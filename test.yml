@@ -1,30 +1,32 @@
 mode: "train"
-arc_type: ae
-out_root: "../result/ae"
+arc_type: gan
+out_root: "../result/wgangp"
 
 loader:
-  data_type: mnist
+  data_type: cifar10
 
 trainer:
+  sub_type: "wgangp"
   network_params:
-    network_type: cnn_ae
-    conv_params:
-      layer_type: small
-      n_dim: 64
-
-    feature_layer: vae
-    mlp_params:
-      hidden_layers: [64]
-    tconv_params:
-      n_up: 2
-      i_channel: 16
+    network_type: gan
+    hidden_dim: 100
+    gradient_penalty: 10.0
+    discrim_params:
+      conv_params:
+        layer_type: small
+        n_dim: 16
+      feature_type: gap
+      mlp_params:
+        hidden_layers: []        
+    gen_params:
+      tconv_params:
+        n_up: 3
+        i_channel: 64
   loss_params:     
   update_params:
      opt_type: "adam"
      lrate_params:
        l_rate: 0.001
-#       decay_type: exp
-#       decay_rate: 0.075
      
   graph_dir: "graph"
   save_model_path: "models/model"
@@ -34,7 +36,7 @@ trainer:
     metric_period: 1
 
 runner:
-  epochs: 20
+  epochs: 50
   batch_size: 32
   eval_params:
     eval_dir: "eval2"
