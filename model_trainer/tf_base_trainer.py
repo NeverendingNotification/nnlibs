@@ -56,10 +56,9 @@ class TFBaseTrainer(BaseTrainer):
       logger_params = self.setting["logger_params"]
       if out_root is not None:
         logger_params["out_root"] = out_root
-      if self.setting["arc_type"] == "sl":
-        logger = tf_logger.SlLogger(**logger_params)
-      elif self.setting["arc_type"] == "ae":
-        logger = tf_logger.AELogger(**logger_params)
+      logger = tf_logger.get_logger(self.setting["arc_type"],
+                                    logger_params)
+        
     self.logger = logger
     if "save_model_path" in self.setting:
       self.setting["save_model_path"] = os.path.join(logger.log_dir,
@@ -99,7 +98,7 @@ class TFBaseTrainer(BaseTrainer):
     raise NotImplementedError()
     
 
-  def train_batch(self, itr):
+  def train_batch(self, itr, epoch):
     fd = self.get_feed(itr)
     run_dict = {**self.trainers , **self.losses}
     train_batch = self.sess.run(run_dict, feed_dict=fd)    
@@ -114,7 +113,7 @@ class TFBaseTrainer(BaseTrainer):
         n_iter, iter_ = loader.train.get_data_iterators(batch_size, epoch=epoch)
         self.initialize_epoch(loader, epochs, batch_size, epoch)
         for itr in tqdm(iter_, total=n_iter):
-          self.train_batch(itr)
+          self.train_batch(itr, epoch)
         self.finalize_epoch(loader, epochs, batch_size, epoch)
       self.end_train(loader)
 

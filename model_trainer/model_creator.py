@@ -18,5 +18,8 @@ def make_model(model_arch, is_train=True):
   elif arch_type == "cnn_ae":
     inputs, models = cnn.get_ae_network(model_arch)
     return inputs, models    
+  elif arch_type == "gan":
+    inputs, models = cnn.get_gan_network(model_arch)
+    return inputs, models    
   else:
     raise NotImplementedError()

@@ -103,8 +103,11 @@ class DataLoader:
 
 def get_data_loader(loader_params):
   data_type = loader_params["data_type"]
-  pre = preprocess_0_1
-  post = postprocess_0_1
+#  pre = preprocess_0_1
+#  post = postprocess_0_1
+  pre = preprocess_1_1
+  post = postprocess_1_1
+  
   if data_type == "raw":
     train, test, n_classes = data_loader.get_raw_loader(**loader_params["raw_dir_params"])
   else:
