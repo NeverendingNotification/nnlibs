@@ -10,7 +10,7 @@ class BaseTrainer:
   def __init__(self, trainer_setting):
     self.setting = trainer_setting    
     
-  def make_model(self, shape, n_classes, is_train=True):
+  def make_model(self, loader, is_train=True):
     raise NotImplementedError()
 
   def get_losses(self, inputs, models, loss_params):
@@ -34,7 +34,7 @@ class BaseTrainer:
     func(**params)
 
   def make_graph(self, loader, is_train):
-    inputs, models = self.make_model(loader["train"].shape, loader["train"].n_classes, is_train=is_train)
+    inputs, models = self.make_model(loader, is_train=is_train)
     self.inputs = inputs
     self.models = models
     if is_train:

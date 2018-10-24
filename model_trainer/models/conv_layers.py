@@ -28,3 +28,13 @@ def get_conv_layers(in_img, is_train, conv_layer_params,
       x = tf.layers.conv2d(x, n_dim, 3, padding="same", activation=act)
       x = tf.layers.conv2d(x, n_dim, 3, padding="same", activation=act)
       return x
+    elif layer_type == "tiny":
+      x = tf.layers.conv2d(in_img, n_dim // 4, 3, padding="same", activation=act)
+      x = tf.layers.max_pooling2d(x, 2, 2)
+      
+      x = tf.layers.conv2d(x, n_dim // 2, 3, padding="same", activation=act)
+      x = tf.layers.max_pooling2d(x, 2, 2)
+
+      x = tf.layers.conv2d(x, n_dim, 3, padding="same", activation=act)
+      return x
+    

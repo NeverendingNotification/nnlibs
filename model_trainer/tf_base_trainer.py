@@ -8,6 +8,7 @@ Created on Sun Sep 30 11:37:33 2018
 
 import os
 
+from tqdm import tqdm
 import tensorflow as tf
 
 from .basic_trainer import BaseTrainer
@@ -26,19 +27,42 @@ class TFBaseTrainer(BaseTrainer):
     saver_setting = self.setting["saver_setting"] \
                     if "saver_setting" in self.setting \
                     else {}
+    if "out_root" in self.setting:
+      out_root = self.setting["out_root"]
+    else:
+      out_root = None
     self.set_saver(saver_setting)
+    
+ 
+    
     if "load_model_path" in self.setting:
-      self.saver.restore(self.sess, self.setting["load_model_path"])
+      lmp =self.setting["load_model_path"]
+      if out_root is not None:
+        lmp = os.path.join(out_root, lmp)
+      self.saver.restore(self.sess, lmp)
     else:
       self.sess.run(tf.global_variables_initializer())
 
     if "graph_dir" in self.setting:
-      self.set_summary(self.sess, self.setting["graph_dir"])
+      graph_dir = self.setting["graph_dir"]
+      if out_root is not None:
+        graph_dir = os.path.join(out_root, graph_dir)
+      if not os.path.isdir(graph_dir):
+        os.makedirs(graph_dir)
+      self.set_summary(self.sess, graph_dir)
 
     logger = None
     if "logger_params" in self.setting:
-      logger = tf_logger.BaseLogger(**self.setting["logger_params"])
+      logger_params = self.setting["logger_params"]
+      if out_root is not None:
+        logger_params["out_root"] = out_root
+      logger = tf_logger.get_logger(self.setting["arc_type"],
+                                    logger_params)
+        
     self.logger = logger
+    if "save_model_path" in self.setting:
+      self.setting["save_model_path"] = os.path.join(logger.log_dir,
+                  self.setting["save_model_path"])
 
     
   def set_saver(self, params):
@@ -68,12 +92,13 @@ class TFBaseTrainer(BaseTrainer):
       self.logger.log_end(self, loader)
     if "save_model_path" in self.setting:
       self.saver.save(self.sess, self.setting["save_model_path"])
+    tf.reset_default_graph()
 
   def get_feed(self, itr):
     raise NotImplementedError()
     
 
-  def train_batch(self, itr):
+  def train_batch(self, itr, epoch):
     fd = self.get_feed(itr)
     run_dict = {**self.trainers , **self.losses}
     train_batch = self.sess.run(run_dict, feed_dict=fd)    
@@ -85,14 +110,14 @@ class TFBaseTrainer(BaseTrainer):
   def train(self, loader, epochs, batch_size=32):
       self.initialize_train(loader, epochs, batch_size)
       for epoch in range(1, epochs + 1):
-        n_iter, iter_ = loader["train"].get_data_iterators(batch_size, epoch=epoch)
+        n_iter, iter_ = loader.train.get_data_iterators(batch_size, epoch=epoch)
         self.initialize_epoch(loader, epochs, batch_size, epoch)
-        for itr in iter_:
-          self.train_batch(itr)
+        for itr in tqdm(iter_, total=n_iter):
+          self.train_batch(itr, epoch)
         self.finalize_epoch(loader, epochs, batch_size, epoch)
       self.end_train(loader)
 
-  def make_model(self, shape, n_classes, is_train=True):
+  def make_model(self, loader, is_train=True):
     with tf.name_scope("util"):
       self.epoch = tf.Variable(1, dtype=tf.int32, trainable=False, name="epoch")
       self.global_step = tf.Variable(0, name="global_step", trainable=False)
@@ -100,11 +125,11 @@ class TFBaseTrainer(BaseTrainer):
 
 
 class SLBaseTrainer(TFBaseTrainer):
-  def make_model(self, shape, n_classes, is_train=True):
-    super().make_model(shape, n_classes, is_train=is_train)
-    model_params = self.setting["model_arch"]
-    model_params["shape"] = shape
-    model_params["n_classes"] = n_classes
+  def make_model(self, loader, is_train=True):
+    super().make_model(loader, is_train=is_train)
+    model_params = self.setting["network_params"]
+    model_params["shape"] = loader.get_shape()
+    model_params["n_classes"] = loader.get_n_classes()
     return model_creator.make_model(model_params, is_train=is_train)
 
   def get_losses(self, inputs, models, loss_params):
@@ -116,7 +141,7 @@ class SLBaseTrainer(TFBaseTrainer):
     return {"loss":loss}
     
   def get_trainer(self, inputs, models, losses):
-    opt_params = self.setting["opt_params"]
+    opt_params = self.setting["update_params"]
     opt, lrate = tf_optimizer.get_optimizer(self.epoch, opt_params)
     self.lrate = lrate      
     trainer = {}
@@ -144,25 +169,28 @@ class SLBaseTrainer(TFBaseTrainer):
 
 
 class AEBaseTrainer(TFBaseTrainer):
-  def make_model(self, shape, n_classes, is_train=True):
-    super().make_model(shape, n_classes, is_train=is_train)
-    model_params = self.setting["model_arch"]
-    model_params["shape"] = shape
-    model_params["n_classes"] = n_classes
+  def make_model(self, loader, is_train=True):
+    super().make_model(loader, is_train=is_train)
+    model_params = self.setting["network_params"]
+    model_params["shape"] = loader.get_shape()
+    model_params["n_classes"] = loader.get_n_classes()
     return model_creator.make_model(model_params, is_train=is_train)
 
   def get_losses(self, inputs, models, loss_params):
     with tf.name_scope("loss"):
       targets = inputs["target"]
-      logits = models["logits"]
+#      logits = models["logits"]
+#      logits = models["prediction"]
+#      self.n_pred = models["prediction"]
+      self.n_pred = models["logits"]
       print(targets.shape)
-      print(logits.shape)
+      print(self.n_pred.shape)
       loss = tf.reduce_mean(tf.losses.mean_squared_error(labels=targets, 
-                                                          predictions=logits))
+                                                          predictions=self.n_pred))
     return {"loss":loss}
 
   def get_trainer(self, inputs, models, losses):
-    opt_params = self.setting["opt_params"]
+    opt_params = self.setting["update_params"]
     opt, lrate = tf_optimizer.get_optimizer(self.epoch, opt_params)
     self.lrate = lrate      
     trainer = {}
@@ -185,3 +213,17 @@ class AEBaseTrainer(TFBaseTrainer):
     from . import tf_output
     tf_output.output(loader, self, eval_params)
     
+  def generate_images(self, loader, image_num, metrics=[]):
+    in_imgs = loader.test.get_random_images(image_num)
+    fd = {self.inputs["input"]:in_imgs,
+          self.inputs["is_train"]:False
+          }
+#    imgs = self.sess.run(self.models["prediction"],
+#                         feed_dict=fd)
+    imgs = self.sess.run(self.n_pred,
+                         feed_dict=fd)
+    import numpy as np
+    imgs = np.concatenate([in_imgs, imgs], axis=2)
+    imgs = loader.test.postprocess(imgs)
+    return imgs
+        

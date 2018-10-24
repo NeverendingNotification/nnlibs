@@ -46,6 +46,10 @@ class LabelLoader:
     else:    
       return self.data[indices]
   
+  def get_random_images(self, num_images):
+    perm = np.random.permutation(self.n_data)
+    return self.get_images(perm[:num_images])
+  
   def get_iter(self, batch_size, is_train, random):
     if random:
       perm = np.random.permutation(self.n_data)
@@ -79,25 +83,42 @@ def postprocess_1_1(data):
   return ((data) + 1.0) * 255.0 / 2.0
 
 
+class DataLoader:
+  def __init__(self, train_loader=None, test_loader=None):
+    assert (train_loader is not None) or (test_loader is not None) 
+    self.train = train_loader
+    self.test = test_loader
+    if self.test is not None:
+      self.loader = self.test
+    else:
+      self.loader = self.train
+    
+  def get_shape(self):
+    return self.loader.shape
   
-  
+  def get_n_classes(self):
+    return self.loader.n_classes
+    
 
 
 def get_data_loader(loader_params):
   data_type = loader_params["data_type"]
-  loader = {}
-  pre = preprocess_0_1
-  post = postprocess_0_1
+#  pre = preprocess_0_1
+#  post = postprocess_0_1
+  pre = preprocess_1_1
+  post = postprocess_1_1
+  
   if data_type == "raw":
     train, test, n_classes = data_loader.get_raw_loader(**loader_params["raw_dir_params"])
   else:
     train, test, n_classes = preset_loader.load_data(data_type)
-  loader["train"] = LabelLoader(train[0], train[1], n_classes,
+  train_loader = LabelLoader(train[0], train[1], n_classes,
         preprocess=pre, postprocess=post
         )
-  loader["test"] = LabelLoader(test[0], test[1], n_classes,
+  test_loader = LabelLoader(test[0], test[1], n_classes,
                               preprocess=pre, postprocess=post
                               )
+  loader = DataLoader(train_loader=train_loader, test_loader=test_loader)
     
     
   return loader

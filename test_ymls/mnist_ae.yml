@@ -1,0 +1,42 @@
+mode: "train"
+arc_type: ae
+out_root: "result/ae"
+
+loader:
+  data_type: mnist
+
+trainer:
+  network_params:
+    network_type: cnn_ae
+    conv_params:
+      layer_type: small
+      n_dim: 64
+
+    feature_layer: vae
+    mlp_params:
+      hidden_layers: [64]
+    tconv_params:
+      n_up: 2
+      i_channel: 16
+  loss_params:     
+  update_params:
+     opt_type: "adam"
+     lrate_params:
+       l_rate: 0.001
+#       decay_type: exp
+#       decay_rate: 0.075
+     
+  graph_dir: "graph"
+  save_model_path: "models/model"
+  logger_params:  
+    log_dir: "logs"
+    metrics: []
+    metric_period: 1
+
+runner:
+  epochs: 10
+  batch_size: 32
+  eval_params:
+    eval_dir: "eval2"
+    n_out: 100
+
