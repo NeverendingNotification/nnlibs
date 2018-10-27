@@ -11,11 +11,14 @@ import os
 import numpy as np
 from . import preset_loader
 from . import data_loader
-  
+from . import tfrecord_loader
 
 
-class LabelLoader:
+from . import base_loader
+
+class LabelLoader(base_loader.BaseLoader):
   def __init__(self, data, labels, n_classes, preprocess=None, postprocess=None):
+    super().__init__("feed")
     self.preprocess = preprocess
     self.postprocess = postprocess
     if preprocess is not None:
@@ -28,7 +31,8 @@ class LabelLoader:
     self.indices = np.arange(self.n_data)
     self.shape = self.data[0].shape
 
-    
+  def get_shape(self):
+    return self.shape
   
   def get_n_iter(self, batch_size):
     n_iter = (self.n_data + batch_size - 1) // batch_size
@@ -84,14 +88,15 @@ def postprocess_1_1(data):
 
 
 class DataLoader:
-  def __init__(self, train_loader=None, test_loader=None):
+  def __init__(self, train_loader=None, test_loader=None, loader_type="feed"):
     assert (train_loader is not None) or (test_loader is not None) 
     self.train = train_loader
     self.test = test_loader
-    if self.test is not None:
-      self.loader = self.test
-    else:
+    self.loader_type = loader_type
+    if self.train is not None:
       self.loader = self.train
+    else:
+      self.loader = self.test
     
   def get_shape(self):
     return self.loader.shape
@@ -99,7 +104,8 @@ class DataLoader:
   def get_n_classes(self):
     return self.loader.n_classes
     
-
+  def get_type(self):
+    return self.loader.get_type()
 
 def get_data_loader(loader_params):
   data_type = loader_params["data_type"]
@@ -108,16 +114,20 @@ def get_data_loader(loader_params):
   pre = preprocess_1_1
   post = postprocess_1_1
   
-  if data_type == "raw":
-    train, test, n_classes = data_loader.get_raw_loader(**loader_params["raw_dir_params"])
+
+  if loader_params["input_type"] == "tfrecord":
+    train_loader, test_loader = tfrecord_loader.get_tfrecord_loader(**loader_params["raw_dir_params"])
   else:
-    train, test, n_classes = preset_loader.load_data(data_type)
-  train_loader = LabelLoader(train[0], train[1], n_classes,
-        preprocess=pre, postprocess=post
-        )
-  test_loader = LabelLoader(test[0], test[1], n_classes,
-                              preprocess=pre, postprocess=post
-                              )
+    if data_type == "raw":
+      train, test, n_classes = data_loader.get_raw_loader(**loader_params["raw_dir_params"])
+    else:
+      train, test, n_classes = preset_loader.load_data(data_type)
+    train_loader = LabelLoader(train[0], train[1], n_classes,
+          preprocess=pre, postprocess=post
+          )
+    test_loader = LabelLoader(test[0], test[1], n_classes,
+                                preprocess=pre, postprocess=post
+                                )
   loader = DataLoader(train_loader=train_loader, test_loader=test_loader)
     
     
