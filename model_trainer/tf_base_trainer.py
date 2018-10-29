@@ -34,12 +34,23 @@ class TFBaseTrainer(BaseTrainer):
       out_root = None
     self.set_saver(saver_setting)
     
- 
+    logger = None
+    if "logger_params" in self.setting:
+      logger_params = self.setting["logger_params"]
+      if out_root is not None:
+        logger_params["out_root"] = out_root
+      logger = tf_logger.get_logger(self.setting["arc_type"],
+                                    logger_params)
+    if "load_model_path" in self.setting:
+      self.setting["load_model_path"] = os.path.join(logger.log_dir,
+                  self.setting["load_model_path"])
+
     
     if "load_model_path" in self.setting:
       lmp =self.setting["load_model_path"]
-      if out_root is not None:
-        lmp = os.path.join(out_root, lmp)
+      print("lmp : ", lmp)
+#      if out_root is not None:
+#        lmp = os.path.join(out_root, lmp)
       self.saver.restore(self.sess, lmp)
     else:
       self.sess.run(tf.global_variables_initializer())
@@ -52,13 +63,6 @@ class TFBaseTrainer(BaseTrainer):
         os.makedirs(graph_dir)
       self.set_summary(self.sess, graph_dir)
 
-    logger = None
-    if "logger_params" in self.setting:
-      logger_params = self.setting["logger_params"]
-      if out_root is not None:
-        logger_params["out_root"] = out_root
-      logger = tf_logger.get_logger(self.setting["arc_type"],
-                                    logger_params)
         
     self.logger = logger
     if "save_model_path" in self.setting:
@@ -91,7 +95,9 @@ class TFBaseTrainer(BaseTrainer):
   def end_train(self, loader):
     if self.logger is not None:
       self.logger.log_end(self, loader)
+    print("smp", "save_model_path" in self.setting)
     if "save_model_path" in self.setting:
+      print(self.setting["save_model_path"])
       self.saver.save(self.sess, self.setting["save_model_path"])
     tf.reset_default_graph()
 
@@ -130,6 +136,7 @@ class TFBaseTrainer(BaseTrainer):
     self.end_train(loader)
 
   def make_model(self, loader, is_train=True):
+    self.is_train = is_train
     with tf.name_scope("util"):
       self.epoch = tf.Variable(1, dtype=tf.int32, trainable=False, name="epoch")
       self.global_step = tf.Variable(0, name="global_step", trainable=False)
@@ -193,8 +200,10 @@ class SLBaseTrainer(TFBaseTrainer):
     opt, lrate = tf_optimizer.get_optimizer(self.epoch, opt_params)
     self.lrate = lrate      
     trainer = {}
-    with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
-      train_op = opt.minimize(losses["loss"])
+    bn_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(bn_ops):
+      with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
+        train_op = opt.minimize(losses["loss"])
     trainer["train_op"] = train_op
     return trainer    
 

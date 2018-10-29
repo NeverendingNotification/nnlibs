@@ -51,6 +51,7 @@ class TfRecordLoader(base_loader.BaseLoader):
     record_files = [os.path.join(record_dir, f) \
                   for f in os.listdir(record_dir) \
                   if f.endswith(".tfrecord")]
+    print("loading files :", record_files)
     param_file = os.path.join(record_dir, params_filename)
     with open(param_file, "r") as hndl:
       params = yaml.load(hndl)
@@ -76,7 +77,7 @@ class TfRecordLoader(base_loader.BaseLoader):
       else:
         dataset = dataset.batch(batch_size)
         iterator = dataset.make_initializable_iterator()
-        print("initializable")
+      print("is_train", is_train)
       
     self.dataset = dataset
     self.iterator= iterator
@@ -86,6 +87,9 @@ class TfRecordLoader(base_loader.BaseLoader):
   def get_batch(self):
     return self.batch
       
+  def get_labels(self):
+    return self.batch[1]
+  
   def get_data_iterators(self, batch_size, epoch=0):
     return self.n_iter, range(self.n_iter)
     

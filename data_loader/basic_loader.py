@@ -107,16 +107,16 @@ class DataLoader:
   def get_type(self):
     return self.loader.get_type()
 
-def get_data_loader(loader_params):
+def get_data_loader(loader_params, mode="train"):
   data_type = loader_params["data_type"]
 #  pre = preprocess_0_1
 #  post = postprocess_0_1
   pre = preprocess_1_1
   post = postprocess_1_1
   
-
   if loader_params["input_type"] == "tfrecord":
     train_loader, test_loader = tfrecord_loader.get_tfrecord_loader(**loader_params["raw_dir_params"])
+    print(train_loader, test_loader)
   else:
     if data_type == "raw":
       train, test, n_classes = data_loader.get_raw_loader(**loader_params["raw_dir_params"])
@@ -128,6 +128,8 @@ def get_data_loader(loader_params):
     test_loader = LabelLoader(test[0], test[1], n_classes,
                                 preprocess=pre, postprocess=post
                                 )
+  if mode=="eval":
+    train_loader=None
   loader = DataLoader(train_loader=train_loader, test_loader=test_loader)
     
     
