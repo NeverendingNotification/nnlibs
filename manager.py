@@ -11,7 +11,7 @@ from model_trainer import tf_base_trainer
 from model_trainer import gan_trainer
 
 def get_loader(loader_params, mode="train", arc_type="sl"):
-  loader = basic_loader.get_data_loader(loader_params)
+  loader = basic_loader.get_data_loader(loader_params, mode=mode)
   return loader
 
 def get_trainer(trainer_params, loader, mode="train", arc_type="sl",

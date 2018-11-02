@@ -13,18 +13,34 @@ from tqdm import tqdm
 def get_metrics_classifier(loader, trainer, batch_size=32, metrics=[]):
   pred = trainer.models["prediction"]
   test_loader = loader.test
-  n_iter, iters = test_loader.get_data_iterators(batch_size,
-                                                 is_train=False, random=False)
-  preds = []
-  cors = []
-  for itr in tqdm(iters, total=n_iter):
-    fd = {trainer.inputs["input"]:itr[0], trainer.inputs["is_train"]:False}
-    predict = trainer.sess.run(pred, feed_dict=fd)
-    preds.append(predict)
-    cors.append(itr[1])
+  if test_loader.get_type() == "feed":
+    n_iter, iters = test_loader.get_data_iterators(batch_size,
+                                                   is_train=False, random=False)
+    preds = []
+    cors = []
+    for itr in tqdm(iters, total=n_iter):
+      fd = {trainer.inputs["input"]:itr[0], trainer.inputs["is_train"]:False}
+      predict = trainer.sess.run(pred, feed_dict=fd)
+      preds.append(predict)
+      cors.append(itr[1])
+  else:
+    trainer.sess.run(test_loader.iterator.initializer)
+    tf_prediction = trainer.test_prediction if trainer.is_train \
+                    else trainer.models["prediction"]
+    tf_labels = loader.test.get_labels()
+    preds = []
+    cors = []
+    try:
+      while True:
+        pred, cor = trainer.sess.run([tf_prediction,
+                                      tf_labels])
+        preds.append(pred)
+        cors.append(cor)
+    except tf.errors.OutOfRangeError:
+      pass      
+      
   prediction = np.concatenate(preds)
   correct = np.concatenate(cors)
-  
   results = {}
   if "acc" in metrics:
     results["acc"] = np.mean(np.argmax(prediction, axis=1) == correct)

@@ -16,6 +16,7 @@ from . import model_creator
 from . import tf_logger
 from .utils import tf_function
 from . import tf_optimizer
+from .models import cnn
 
 class TFBaseTrainer(BaseTrainer):
   def __init__(self, trainer_setting):
@@ -33,12 +34,23 @@ class TFBaseTrainer(BaseTrainer):
       out_root = None
     self.set_saver(saver_setting)
     
- 
+    logger = None
+    if "logger_params" in self.setting:
+      logger_params = self.setting["logger_params"]
+      if out_root is not None:
+        logger_params["out_root"] = out_root
+      logger = tf_logger.get_logger(self.setting["arc_type"],
+                                    logger_params)
+    if "load_model_path" in self.setting:
+      self.setting["load_model_path"] = os.path.join(logger.log_dir,
+                  self.setting["load_model_path"])
+
     
     if "load_model_path" in self.setting:
       lmp =self.setting["load_model_path"]
-      if out_root is not None:
-        lmp = os.path.join(out_root, lmp)
+      print("lmp : ", lmp)
+#      if out_root is not None:
+#        lmp = os.path.join(out_root, lmp)
       self.saver.restore(self.sess, lmp)
     else:
       self.sess.run(tf.global_variables_initializer())
@@ -51,13 +63,6 @@ class TFBaseTrainer(BaseTrainer):
         os.makedirs(graph_dir)
       self.set_summary(self.sess, graph_dir)
 
-    logger = None
-    if "logger_params" in self.setting:
-      logger_params = self.setting["logger_params"]
-      if out_root is not None:
-        logger_params["out_root"] = out_root
-      logger = tf_logger.get_logger(self.setting["arc_type"],
-                                    logger_params)
         
     self.logger = logger
     if "save_model_path" in self.setting:
@@ -90,7 +95,9 @@ class TFBaseTrainer(BaseTrainer):
   def end_train(self, loader):
     if self.logger is not None:
       self.logger.log_end(self, loader)
+    print("smp", "save_model_path" in self.setting)
     if "save_model_path" in self.setting:
+      print(self.setting["save_model_path"])
       self.saver.save(self.sess, self.setting["save_model_path"])
     tf.reset_default_graph()
 
@@ -98,26 +105,38 @@ class TFBaseTrainer(BaseTrainer):
     raise NotImplementedError()
     
 
-  def train_batch(self, itr, epoch):
+  def train_batch_feed(self, itr, epoch):
     fd = self.get_feed(itr)
     run_dict = {**self.trainers , **self.losses}
     train_batch = self.sess.run(run_dict, feed_dict=fd)    
 
     if self.logger is not None:
       self.logger.log_batch(train_batch)
+      
+  def train_batch(self, itr, epoch):
+    run_dict = {**self.trainers , **self.losses}
+    train_batch = self.sess.run(run_dict)    
+
+    if self.logger is not None:
+      self.logger.log_batch(train_batch)
 
 
   def train(self, loader, epochs, batch_size=32):
-      self.initialize_train(loader, epochs, batch_size)
-      for epoch in range(1, epochs + 1):
-        n_iter, iter_ = loader.train.get_data_iterators(batch_size, epoch=epoch)
-        self.initialize_epoch(loader, epochs, batch_size, epoch)
-        for itr in tqdm(iter_, total=n_iter):
-          self.train_batch(itr, epoch)
-        self.finalize_epoch(loader, epochs, batch_size, epoch)
-      self.end_train(loader)
+    batch_func = self.train_batch_feed if loader.get_type() == "feed" else \
+                    self.train_batch
+    
+    self.initialize_train(loader, epochs, batch_size)
+    for epoch in range(1, epochs + 1):
+      n_iter, iter_ = loader.train.get_data_iterators(batch_size, epoch=epoch)
+      self.initialize_epoch(loader, epochs, batch_size, epoch)
+      for itr in tqdm(iter_, total=n_iter):
+#        self.train_batch(itr, epoch)
+        batch_func(itr, epoch)
+      self.finalize_epoch(loader, epochs, batch_size, epoch)
+    self.end_train(loader)
 
   def make_model(self, loader, is_train=True):
+    self.is_train = is_train
     with tf.name_scope("util"):
       self.epoch = tf.Variable(1, dtype=tf.int32, trainable=False, name="epoch")
       self.global_step = tf.Variable(0, name="global_step", trainable=False)
@@ -125,12 +144,48 @@ class TFBaseTrainer(BaseTrainer):
 
 
 class SLBaseTrainer(TFBaseTrainer):
+  
+  def make_inputs(self, loader, model_params, train=True):
+    if loader.get_type() == "feed":
+      shape = loader.get_shape()
+      with tf.name_scope("inputs"):
+        in_imgs = tf.placeholder(tf.float32, shape=(None,) + shape)
+        is_train = tf.placeholder(tf.bool)
+        trg_imgs = tf.placeholder(tf.int32, shape=(None,))
+      inputs = {"input":in_imgs, "is_train":is_train, "target":trg_imgs}
+    else:
+      in_imgs, trg_imgs, _ = loader.get_batch()
+      inputs = {"input":in_imgs, "is_train":train, "target":trg_imgs}
+    return inputs
+  
+  def make_network(self, inputs, model_params):
+    conv_last, feature, logits = cnn.get_neural_net(inputs["input"],
+                                                    inputs["is_train"],
+                                                    model_params["n_classes"],
+                                                    model_params["conv_params"],
+                                                    model_params["feature_type"],
+                                                    model_params["mlp_params"]
+                                                )
+    
+    pred = tf.nn.softmax(logits)
+    models = {"conv_output":conv_last, "feature":feature,
+              "logits":logits, "prediction":pred}
+    return models
+  
   def make_model(self, loader, is_train=True):
     super().make_model(loader, is_train=is_train)
-    model_params = self.setting["network_params"]
-    model_params["shape"] = loader.get_shape()
+    model_params = self.setting["network_params"]["classifier_params"]
     model_params["n_classes"] = loader.get_n_classes()
-    return model_creator.make_model(model_params, is_train=is_train)
+#    return model_creator.make_model(model_params, is_train=is_train)
+#    inputs, models = cnn.get_network(model_params, is_train=is_train)
+    inputs = self.make_inputs(loader.loader, model_params, train=is_train)
+    models = self.make_network(inputs, model_params)
+    if is_train and (loader.test is not None) and (loader.get_type() == "tensor"):
+      test_inputs = self.make_inputs(loader.test, model_params, train=False)
+      test_models = self.make_network(test_inputs, model_params)
+      self.test_prediction = test_models["prediction"]
+      self.test_labels = test_inputs["target"]
+    return inputs, models
 
   def get_losses(self, inputs, models, loss_params):
     with tf.name_scope("loss"):
@@ -145,8 +200,10 @@ class SLBaseTrainer(TFBaseTrainer):
     opt, lrate = tf_optimizer.get_optimizer(self.epoch, opt_params)
     self.lrate = lrate      
     trainer = {}
-    with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
-      train_op = opt.minimize(losses["loss"])
+    bn_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(bn_ops):
+      with tf.control_dependencies([tf.assign_add(self.global_step, 1)]):
+        train_op = opt.minimize(losses["loss"])
     trainer["train_op"] = train_op
     return trainer    
 
