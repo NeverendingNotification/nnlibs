@@ -17,6 +17,7 @@ from . import tf_logger
 from .utils import tf_function
 from . import tf_optimizer
 from .models import cnn
+from . import tf_data_augmentation
 
 class TFBaseTrainer(BaseTrainer):
   def __init__(self, trainer_setting):
@@ -179,6 +180,8 @@ class SLBaseTrainer(TFBaseTrainer):
 #    return model_creator.make_model(model_params, is_train=is_train)
 #    inputs, models = cnn.get_network(model_params, is_train=is_train)
     inputs = self.make_inputs(loader.loader, model_params, train=is_train)
+    if is_train:
+      inputs["input"] = tf_data_augmentation.data_augmentation(inputs["input"])
     models = self.make_network(inputs, model_params)
     if is_train and (loader.test is not None) and (loader.get_type() == "tensor"):
       test_inputs = self.make_inputs(loader.test, model_params, train=False)

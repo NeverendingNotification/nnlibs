@@ -34,6 +34,8 @@ class BaseLogger:
     self.log_dir = log_dir
     self.metrics = metrics
     self.sample = sample_dirname
+    self.all_metrics = {}
+    
   def start_epoch(self, trainer, loader, epoch):
     self.losses = OrderedDict()
 
@@ -54,14 +56,29 @@ class BaseLogger:
     return key
   
   def log_end(self, trainer, loader):
-    pass
+    if len(self.all_metrics) > 0:
+      import pandas as pd
+      df = pd.DataFrame(index=self.all_metrics["epoch"])
+      for metric in self.metrics:
+        df[metric] = self.all_metrics[metric]
+      df.to_csv(os.path.join(self.log_dir, "metrics.csv"))
+      df.plot()
+      import matplotlib.pyplot as plt
+      plt.savefig(os.path.join(self.log_dir, "plot.png"))
   
 class SlLogger(BaseLogger):
   def end_epoch(self, trainer, loader, epoch):
+    if "epoch" not in self.all_metrics:
+      self.all_metrics["epoch"] = []
+    self.all_metrics["epoch"].append(epoch)
     out = tf_metrics.get_metrics_classifier(loader, trainer, 
                                       metrics=self.metrics)
+    for metric in self.metrics:
+      if metric not in self.all_metrics:
+        self.all_metrics[metric] = []
+      self.all_metrics[metric].append(out[metric])    
     loss_key = self.get_loss_str()
-    key = ", ".join(["{} : {}".format(metric, out[metric]) for metric in self.metrics])
+    key = ", ".join(["{} : {:.04f}".format(metric, out[metric]) for metric in self.metrics])
     print("Epoch : {}, {}, {}".format(epoch, loss_key, key))
     
 class AELogger(BaseLogger):

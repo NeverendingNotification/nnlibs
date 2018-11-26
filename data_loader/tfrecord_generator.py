@@ -61,7 +61,7 @@ def make_tf_record_files(files, labels, out_dir, offset=0, class_names=[],
         classes.append(label)
         example = tf.train.Example(features=tf.train.Features(feature={
                           "index": tf.train.Feature(int64_list=tf.train.Int64List(value=[ind[f]])),
-                          "class": tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
+                          "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
                           "image": tf.train.Feature(bytes_list=tf.train.BytesList(value=[arr.tostring()]))
                           }))
         writer.write(example.SerializeToString())
@@ -113,10 +113,10 @@ def make_tf_records_from_directory(in_root, out_root, with_cv=False):
   if with_cv:
     indices = get_train_test_indices(all_labels)
     for i, (train_ind, test_ind)  in enumerate(indices):
-      out_train = os.path.join(out_root, "cv_{:04d}".format(i), "train")
+      out_train = os.path.join(out_root, "cv_{:04d}".format(i), "Train")
       train_files = all_files[train_ind]
       train_labels = all_labels[train_ind]      
-      out_test = os.path.join(out_root, "cv_{:04d}".format(i), "test")
+      out_test = os.path.join(out_root, "cv_{:04d}".format(i), "Test")
       test_files = all_files[test_ind]
       test_labels = all_labels[test_ind]      
 

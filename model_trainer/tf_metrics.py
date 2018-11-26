@@ -40,6 +40,7 @@ def get_metrics_classifier(loader, trainer, batch_size=32, metrics=[]):
       pass      
       
   prediction = np.concatenate(preds)
+  y_pred = np.argmax(prediction, axis=1)
   correct = np.concatenate(cors)
   results = {}
   if "acc" in metrics:
@@ -51,6 +52,13 @@ def get_metrics_classifier(loader, trainer, batch_size=32, metrics=[]):
   if "mse" in metrics:
     mse = np.mean(np.sqrt(np.power(prediction - correct, 2)))
     results["mse"] = mse    
+  if "iou" in metrics:
+    tp = np.sum((correct == 1) & (correct == y_pred))
+    fn = np.sum((correct == 1) & (correct != y_pred))
+    fp = np.sum((y_pred == 1) & (correct != y_pred))
+    print(tp, fp, fn, len(prediction))
+    results["iou"] = tp /(tp+fp+fn)
+    
   return results
 
 def get_metrics_generator(loader, trainer, batch_size=32, metrics=[]):

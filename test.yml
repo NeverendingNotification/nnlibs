@@ -1,12 +1,12 @@
 mode: "train"
 arc_type: sl
-out_root: "../result/20181029/sl"
+out_root: "../result/20181126/sl"
 
 loader:
-  data_type: cifar10
+  data_type: raw
   input_type: tfrecord
   raw_dir_params:
-    input_dir: ../data/cifar10
+    input_dir: ../data/train_cv/cv_0001
 
 trainer:
   network_params:
@@ -14,7 +14,7 @@ trainer:
     classifier_params:
       conv_params:
         layer_type: midi
-        n_dim: 32
+        n_dim: 64
       feature_type: gap
       mlp_params:
         hidden_layers: []        
@@ -26,14 +26,14 @@ trainer:
      
   graph_dir: "graph"
   save_model_path: "models/model"
-  load_model_path: "models/model"
+#  load_model_path: "models/model"
   logger_params:  
     log_dir: "logs"
-    metrics: ["acc"]
+    metrics: ["acc", "ent", "iou"]
     metric_period: 1
 
 runner:
-  epochs: 30
+  epochs: 500
   batch_size: 32
   eval_params:
     eval_dir: "acc"
