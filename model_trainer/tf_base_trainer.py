@@ -43,9 +43,16 @@ class TFBaseTrainer(BaseTrainer):
       logger = tf_logger.get_logger(self.setting["arc_type"],
                                     logger_params)
     if "load_model_path" in self.setting:
-      self.setting["load_model_path"] = os.path.join(logger.log_dir,
+      model_path = os.path.join(logger.log_dir,
                   self.setting["load_model_path"])
-
+      if os.path.exists(model_path + ".meta"):
+        self.setting["load_model_path"] = model_path
+      else:
+        basedir = os.path.dirname(model_path)        
+        files = [f for f in sorted(os.listdir(basedir)) if f.endswith(".meta")]
+        print(files)
+        self.setting["load_model_path"] = os.path.join(basedir,
+                    files[-1].split(".")[0])
     
     if "load_model_path" in self.setting:
       lmp =self.setting["load_model_path"]
@@ -88,18 +95,38 @@ class TFBaseTrainer(BaseTrainer):
   def finalize_epoch(self, loader, epochs, batch_size, epoch):    
     if self.logger is not None:
       self.logger.end_epoch(self, loader, epoch)
-      
+      if self.logger.is_outmodel():
+        self.sess.run(self.assign_threshold, 
+                      feed_dict={self.ph_threshold:self.logger.threshold})
+        self.save_model(epoch=epoch)
+        
     result = self.sess.run([self.epoch, self.epoch_op,
                             self.global_step, self.lrate])
+    
+  
 
+  def model_name(self, epoch=None):
+    if epoch is None:
+      return self.setting["save_model_path"]
+    else:
+      return self.setting["save_model_path"] + "_{:05d}".format(epoch)
+      
+  
+  def save_model(self, epoch=None):
+    if "save_model_path" in self.setting:
+      model_name = self.model_name(epoch=epoch)
+      print(model_name)
+      
+      self.saver.save(self.sess, model_name)
+    
 
   def end_train(self, loader):
     if self.logger is not None:
       self.logger.log_end(self, loader)
-    print("smp", "save_model_path" in self.setting)
-    if "save_model_path" in self.setting:
-      print(self.setting["save_model_path"])
-      self.saver.save(self.sess, self.setting["save_model_path"])
+#    print("smp", "save_model_path" in self.setting)
+#    if "save_model_path" in self.setting:
+#      print(self.setting["save_model_path"])
+#      self.saver.save(self.sess, self.setting["save_model_path"])
     tf.reset_default_graph()
 
   def get_feed(self, itr):
@@ -142,6 +169,10 @@ class TFBaseTrainer(BaseTrainer):
       self.epoch = tf.Variable(1, dtype=tf.int32, trainable=False, name="epoch")
       self.global_step = tf.Variable(0, name="global_step", trainable=False)
       self.epoch_op = tf.assign_add(self.epoch, 1)
+      self.threshold = tf.Variable(0.5, name="threshold", trainable=False)
+      if is_train:
+        self.ph_threshold = tf.placeholder(dtype=tf.float32)
+        self.assign_threshold = tf.assign(self.threshold, self.ph_threshold)
 
 
 class SLBaseTrainer(TFBaseTrainer):
@@ -154,8 +185,9 @@ class SLBaseTrainer(TFBaseTrainer):
         is_train = tf.placeholder(tf.bool)
         trg_imgs = tf.placeholder(tf.int32, shape=(None,))
       inputs = {"input":in_imgs, "is_train":is_train, "target":trg_imgs}
-    else:
+    else:      
       in_imgs, trg_imgs, _ = loader.get_batch()
+      print(in_imgs)
       inputs = {"input":in_imgs, "is_train":train, "target":trg_imgs}
     return inputs
   
@@ -223,10 +255,37 @@ class SLBaseTrainer(TFBaseTrainer):
 
   def evaluate(self, loader, eval_params):
     from . import tf_metrics
+    threshold = self.sess.run(self.threshold)
+    print(threshold)
     out = tf_metrics.get_metrics_classifier(loader, self, 
-                                      metrics=["acc"])
+                                      metrics=["acc",  "iou", "max_iou"],
+                                      threshold=threshold)
     print(out)
+    tf.reset_default_graph()
+    return out
 
+  def predict(self, loader, pred_params):
+    threshold = self.sess.run(self.threshold)
+    print(threshold)
+    from . import tf_metrics
+    preds = tf_metrics.get_prediction(loader, self)
+    
+    out_dir = pred_params["pred_root"]
+    if not os.path.isdir(out_dir):
+      os.makedirs(out_dir)
+    import pandas as pd
+    print(preds.shape)
+    print(loader.test.filenames.shape)
+    df = pd.DataFrame(preds, index=loader.test.filenames)
+    base = os.path.basename(self.setting["out_root"])
+    out_file = os.path.join(out_dir, base + ".csv")
+    is_positive = preds[:, 1] > threshold
+    print(out_file)
+    df["is_positve"] = is_positive
+    df.to_csv(out_file)
+    
+    tf.reset_default_graph()
+    
 
 class AEBaseTrainer(TFBaseTrainer):
   def make_model(self, loader, is_train=True):

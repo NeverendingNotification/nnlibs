@@ -52,7 +52,9 @@ def get_runner(runner_params, loader, trainer, mode, arc_type="sl"):
         self.trainer.train(loader, self.params["epochs"],
                          self.params["batch_size"])
       elif mode == "eval":
-        self.trainer.evaluate(loader, self.params["eval_params"])
+        return self.trainer.evaluate(loader, self.params["eval_params"])
+      elif mode == "predict":
+        self.trainer.predict(loader, self.params["pred_params"])
   return Runner(runner_params, loader, trainer)
       
 

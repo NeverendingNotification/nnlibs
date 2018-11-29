@@ -56,6 +56,9 @@ class TfRecordLoader(base_loader.BaseLoader):
     with open(param_file, "r") as hndl:
       params = yaml.load(hndl)
     shape = tuple(params["shape"])
+    import pandas as pd
+    self.filenames = pd.read_csv(os.path.join(record_dir, "filenames.csv"), index_col=0).index
+    
     
     with tf.name_scope(name):
       dataset = tf.data.TFRecordDataset(record_files)
@@ -152,10 +155,14 @@ def get_tfrecord_loader(input_dir="./", batch_size=32,
                         train_name="Train", test_name="Test"):
   train_file = os.path.join(input_dir, train_name)
   test_file = os.path.join(input_dir, test_name)
-  
-  train_loader = TfRecordLoader(train_file, batch_size, name="train_data")
-  test_loader = TfRecordLoader(test_file, batch_size, is_train=False,
+  if (not os.path.isdir(train_file)) and (not os.path.isdir(test_file)):
+    train_loader = None
+    test_loader = TfRecordLoader(input_dir, batch_size, is_train=False,
                                name="test_data")
+  else:  
+    train_loader = TfRecordLoader(train_file, batch_size, name="train_data")
+    test_loader = TfRecordLoader(test_file, batch_size, is_train=False,
+                                 name="test_data")
   return train_loader, test_loader
     
 

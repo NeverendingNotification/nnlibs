@@ -1,12 +1,12 @@
-mode: "train"
+mode: "cv"
 arc_type: sl
-out_root: "../result/20181126/sl"
+out_root: "../result/20181128/sl_midi"
 
 loader:
   data_type: raw
   input_type: tfrecord
   raw_dir_params:
-    input_dir: ../data/train_cv/cv_0001
+    input_dir: ../data/train_cv
 
 trainer:
   network_params:
@@ -29,11 +29,11 @@ trainer:
 #  load_model_path: "models/model"
   logger_params:  
     log_dir: "logs"
-    metrics: ["acc", "ent", "iou"]
+    metrics: ["acc", "ent", "auc", "iou", "max_iou"]
     metric_period: 1
 
 runner:
-  epochs: 500
+  epochs: 100
   batch_size: 32
   eval_params:
     eval_dir: "acc"

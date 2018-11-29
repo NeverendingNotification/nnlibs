@@ -39,6 +39,7 @@ def make_tf_record_files(files, labels, out_dir, offset=0, class_names=[],
   n_split = (n_file + split_size -1) //split_size
   files = np.array(files)
   labels = np.array(labels)
+  
   if random:
     inds = np.random.permutation(n_file)
   else:
@@ -58,24 +59,24 @@ def make_tf_record_files(files, labels, out_dir, offset=0, class_names=[],
         arr = cv2.imread(file)
         label = t_labels[f]
         filenames.append(os.path.basename(file))
-        classes.append(label)
+        classes.append(label)        
         example = tf.train.Example(features=tf.train.Features(feature={
                           "index": tf.train.Feature(int64_list=tf.train.Int64List(value=[ind[f]])),
                           "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
                           "image": tf.train.Feature(bytes_list=tf.train.BytesList(value=[arr.tostring()]))
                           }))
         writer.write(example.SerializeToString())
-            
+          
     
     
-    
-  num_classes = len(np.unique(labels))
+  n_data = len(classes)
+  num_classes = len(class_names)
   shape = arr.shape
   if len(class_names) == 0:
     class_names =[chr(ord("A") + i) for i in range(num_classes)]
   param_file = os.path.join(out_dir, param_filename)
   params ={
-      "n_data":n_file,
+      "n_data":n_data,
       "num_classes":num_classes,
       "class_names":class_names,
       "shape":list(shape)
@@ -96,16 +97,47 @@ def get_train_test_indices(classes):
     indices.append((ind, ind2))
   return indices
 
-      
-def make_tf_records_from_directory(in_root, out_root, with_cv=False):
-  dirs = os.listdir(in_root)
-  all_files = []
-  all_labels = []
+
+def balance_augmentation(data, labels):
+  vc = pd.Series(labels).value_counts()
+  max_v = np.max(vc)
+  n_vc = len(vc)
+  weights = [1] * n_vc
+#  for n in range(n_vc):
+  for k, v in vc.items():
+    weights[k] = int(max_v / v)
+
+  weights = [0.4, 1.0]  
+  res_data = []
+  res_labels = []
+  for d, l in zip(data, labels):
+    weight = weights[l]
+    if weight >  np.random.uniform():
+      res_data.append(d)
+      res_labels.append(l)
+  res_data = np.array(res_data)
+  res_labels = np.array(res_labels)
+  perm = np.random.permutation(len(res_data))
+  return res_data[perm], res_labels[perm]
   
-  for d, dir_ in enumerate(dirs):
-    files = os.listdir(os.path.join(in_root, dir_))
-    all_files.extend([os.path.join(in_root, dir_, f) for f in files])
-    all_labels.extend([d]*len(files))  
+      
+def make_tf_records_from_directory(in_root, out_root, with_cv=False, class_names=None):
+  dirs = [d for d in os.listdir(in_root) if os.path.isdir(os.path.join(in_root, d))]
+  all_files = []
+  all_labels = []  
+  if len(dirs) > 0:
+    for d, dir_ in enumerate(dirs):
+      files = os.listdir(os.path.join(in_root, dir_))
+      all_files.extend([os.path.join(in_root, dir_, f) for f in files])
+      all_labels.extend([d]*len(files))  
+  else:
+    files = [os.path.join(in_root, f) for f in os.listdir(in_root)]
+    n_files = len(files)
+    print(n_files)
+    all_files.extend(files)
+    all_labels.extend([-1] * n_files)
+    dirs = class_names
+      
 
   all_files = np.array(all_files)
   all_labels = np.array(all_labels)
@@ -121,6 +153,9 @@ def make_tf_records_from_directory(in_root, out_root, with_cv=False):
       test_labels = all_labels[test_ind]      
 
       print("CV : ", i)
+      
+      train_files, train_labels = balance_augmentation(train_files, train_labels)
+      
       print(pd.Series(train_labels).value_counts())
       print(pd.Series(test_labels).value_counts())
       make_tf_record_files(train_files, train_labels, out_train, class_names=dirs)
@@ -165,9 +200,10 @@ if __name__ == "__main__":
 #  out_file = "/home/naoki/Document/ml_data/mtg/tfrecoords/KLD.tfrecoord"
 #  make_tf_recoord(in_dir, out_file)
 #  img_dir = "../../data/cifar10"
-  in_root = "../../data/train"
-  out_root = "../../data/train_cv"
-  make_tf_records_from_directory(in_root, out_root, with_cv=True)
+  in_root = "../../data/test"
+  out_root = "../../data/test_tf"
+  make_tf_records_from_directory(in_root, out_root, with_cv=False,
+                                 class_names=["negative", "positive"])
   
 #  if not os.path.isdir(img_dir):
 #    os.makedirs(img_dir)

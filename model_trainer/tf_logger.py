@@ -35,6 +35,8 @@ class BaseLogger:
     self.metrics = metrics
     self.sample = sample_dirname
     self.all_metrics = {}
+    self.is_out = False
+    self.threshold = 0.5
     
   def start_epoch(self, trainer, loader, epoch):
     self.losses = OrderedDict()
@@ -65,8 +67,16 @@ class BaseLogger:
       df.plot()
       import matplotlib.pyplot as plt
       plt.savefig(os.path.join(self.log_dir, "plot.png"))
+      
+  def is_outmodel(self):
+    return False
   
 class SlLogger(BaseLogger):
+  def __init__(self, **params):
+    super().__init__(**params)
+    self.max_iou = 0.0
+
+  
   def end_epoch(self, trainer, loader, epoch):
     if "epoch" not in self.all_metrics:
       self.all_metrics["epoch"] = []
@@ -79,7 +89,24 @@ class SlLogger(BaseLogger):
       self.all_metrics[metric].append(out[metric])    
     loss_key = self.get_loss_str()
     key = ", ".join(["{} : {:.04f}".format(metric, out[metric]) for metric in self.metrics])
-    print("Epoch : {}, {}, {}".format(epoch, loss_key, key))
+    print("Epoch : {}, {}, {}".format(epoch, loss_key, key), self.max_iou)
+    self.is_out = False
+    if  out["max_iou"] > self.max_iou:
+      self.max_iou = out["max_iou"]
+      if self.max_iou > 0.1:
+        self.is_out = True
+        self.threshold = out["max_iou_threshold"]
+        print("IOU THRESHOLD", out["max_iou_threshold"])
+    
+    
+  def is_outmodel(self):
+    if self.is_out:
+      self.is_out = False
+      return True
+    else:
+      return False
+    
+  
     
 class AELogger(BaseLogger):
   def end_epoch(self, trainer, loader, epoch):

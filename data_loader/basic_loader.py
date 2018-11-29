@@ -128,7 +128,7 @@ def get_data_loader(loader_params, mode="train"):
     test_loader = LabelLoader(test[0], test[1], n_classes,
                                 preprocess=pre, postprocess=post
                                 )
-  if mode=="eval":
+  if mode != "train":
     train_loader=None
   loader = DataLoader(train_loader=train_loader, test_loader=test_loader)
     
